@@ -185,6 +185,167 @@ class StateRoute extends Component {
     if (response.ok) {
       const data = await response.json()
       const stateTested = data[stateCode].total.tested
+      const isStateCode = statesList.filter(
+        eachItem => eachItem.state_code === stateCode,
+      )
+      const totalStateData = data[stateCode].total
+      const stateName = isStateCode[0].state_name
+      const newDate = new Date(date[stateCode].meta.last_updated)
+
+      this.setState({
+        isLoading: false,
+        totalState: totalStateData,
+        listStateName: stateName,
+        stateDate: newDate,
+        localStoreData: data,
+        id: stateCode,
+        stateCode,
+        totalTested: stateTested,
+      })
+    } else {
+      console.log('Fetch Error')
     }
   }
+
+  stateData = () => {
+    const {id, localStoreData, category} = this.state
+    const listOfDistrict = localStoreData[id].districts
+    const listOfDistrictName = Object.keys(listOfDistrict)
+    const lowerCaseDis = category.toLowerCase()
+    const dataElement = listOfDistrictName.map(eachItem => ({
+      districtNameList: eachItem,
+      districtValue: listOfDistrict[eachItem].total[lowerCaseDis]
+        ? listOfDistrict[eachItem].total[lowerCaseDis]
+        : 0,
+    }))
+
+    dataElement.sort((a, b) => b.districtValue - a.districtValue)
+
+    const stateActiveCase = listOfDistrictName.map(eachItem => ({
+      districtNameList: eachItem,
+      districtValue:
+        listOfDistrict[eachItem].total.confirmed -
+        (listOfDistrict[eachItem].total.recovered +
+          listOfDistrict[eachItem].total.deceased)
+          ? listOfDistrict[eachItem].total.confirmed -
+            (listOfDistrict[eachItem].total.recovered +
+              listOfDistrict[eachItem].total.deceased)
+          : 0,
+    }))
+    stateActiveCase.sort((a, b) => b.districtValue - a.districtValue)
+
+    if (lowerCaseDis === 'active') {
+      return stateActiveCase
+    }
+    return dataElement
+  }
+
+  stateListCards = card => {
+    this.setState({category: card, isStateCard: false})
+  }
+
+  districtName = () => {
+    const {
+      listStateName,
+      totalTested,
+      totalState,
+      isStateCard,
+      stateData,
+      category,
+      stateCode,
+    } = this.state
+    const topDistricts = this.stateData()
+
+    const months = [
+      'jan',
+      'Feb',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ]
+
+    return (
+      <div className="stateRouter-column">
+        <div className="state-tested-container">
+          <h1 className="stateRouter-heading stateRoute-heading-container">
+            {listStateName}
+          </h1>
+          <div>
+            <p className="stateRoute-tested">Tested</p>
+            <p className="stateRoute-total-tested">{totalTested}</p>
+          </div>
+        </div>
+        <div>
+          <p className="stateRoute-date">{`Last update on ${
+            months[stateDate.getMatch()]
+          } ${stateDate.getDate()} ${stateDate.getFullYear()}.`}</p>
+        </div>
+        <div className="stateRoute-cards">
+          <StateCards
+            stateListCards={this.stateListCards}
+            totalStateCards={totalState}
+            isStateCard={isStateCard}
+          />
+        </div>
+        <div className="stateRoute-top-districts">
+          <h1
+            className={`stateRoute-top-district-heading stateRoute-${category}`}
+          >
+            Top Districts
+          </h1>
+          <div className="stateRoute-ul">
+            <div className="stateRoute-ul-container">
+              <ul
+                className="stateRoute-top-district-list"
+                testid="topDistrictsUnorderedList"
+              >
+                {topDistricts.map(eachItem => (
+                  <ToDistricts
+                    topDistrictsNumber={eachItem.districtValue}
+                    topDistrictsName={eachItem.districtNameList}
+                    key={eachItem.districtNameList}
+                  />
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="stateRoute-chart-container"
+          testid="listChartsContainer"
+        >
+          <Charts districtsChart={category} districtCode={stateCode} />
+        </div>
+      </div>
+    )
+  }
+
+  render() {
+    const {isLoading} = this.state
+    return (
+      <>
+        <Header />
+        <div className="StateRoute-container">
+          {isLoading ? (
+            <div className="loading-class" testid="stateDetailsLoader">
+              <Loader type="Oval" color="#007BFF" height={50} width={50} />
+            </div>
+          ) : (
+            this.districtName()
+          )}
+          <Footer />
+        </div>
+      </>
+    )
+  }
 }
+
+export default StateRoute
